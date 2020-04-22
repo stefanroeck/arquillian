@@ -1,0 +1,362 @@
+openapi: 3.0.3
+
+info:
+  description: Practical Problem Solver (PPS) API.
+  version: "1.0"
+  title: PPS-API
+
+servers:
+  - url: /
+    description: "endpoint for external PPS-API.
+all paths of this API are resolved against the endpoint where the API-definition file is exposed.
+example for ping: \"https://dev.pps.dev/api/pps/v1/pps-api.yml\" -> \"https://dev.pps.dev/api/pps/v1/ping\""
+
+paths:
+  /ping:
+    get:
+      tags:
+        - status
+      summary: Simple ping endpoint
+      operationId: ping
+      responses:
+        200:
+          description: Returns OK if the application is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingResponseDto"
+
+  /echo:
+    post:
+      summary: Returns a response with the status code sent in the body.
+      tags:
+        - status
+      operationId: echo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EchoDto"
+      responses:
+        default:
+          description: Response with status code given in the request body
+          # The response body is empty.
+
+  /health:
+    get:
+      tags:
+        - status
+      summary: Check health and ready status of the application's components
+      operationId: getHealthCheck
+      responses:
+        200:
+          description: Details on application's health status. Accepts EMAILSERVER and DATABASE as parameters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckObjectDto"
+
+  /documents:
+    description: PPS documents
+    post:
+      summary: Create a new PPS document
+      operationId: createDocument
+      tags:
+        - documents
+      parameters:
+        - in: header
+          name: X-Corporate-Group-Id
+          description: >
+            The corporate group id added by a proxy.
+            Required since request body contains only plant code and supplier number as partner relation.
+          schema:
+            type: string
+            pattern: \S
+      requestBody:
+        required: true
+        description: All necessary data to create the document
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDocumentRequestDto"
+      responses:
+        201:
+          description: Created
+          headers:
+            Location:
+              description: relative URL to the created document
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateDocumentResponseDto"
+
+
+components:
+  schemas:
+    AppComponentNameDto:
+      type: string
+      enum:
+        - database
+        - emailserver
+
+    StatusValueDto:
+      type: string
+      enum:
+        - UP
+        - DOWN
+
+    AppComponentHealthCheckDto:
+      type: object
+      required:
+        - name
+        - status
+      properties:
+        name:
+          $ref: "#/components/schemas/AppComponentNameDto"
+        status:
+          $ref: "#/components/schemas/StatusValueDto"
+        data:
+          type: object
+          description: "an object with keys that follow the regex-pattern [a-zA-Z_]* and values of type [string, boolean, number]"
+
+    CreateDocumentRequestDto:
+      type: object
+      required:
+        - metadata
+        - data
+      properties:
+        metadata:
+          type: object
+          required:
+            - partnerRelation
+          properties:
+            partnerRelation:
+              $ref: '#/components/schemas/PartnerRelationDto'
+        data:
+          type: object
+          required:
+            - title
+            - partNumber
+            - customerTeamLead
+          properties:
+            title:
+              type: string
+              pattern: \S
+              maxLength: 50
+            referenceType:
+              type: string
+              enum:
+                - CONCESSION
+                - DELAY
+                - EVENT
+                - IN_SERVICE_ISSUE
+                - NON_CONFORMITY
+                - NOTIFICATION_OF_ESCAPE
+                - OTHER
+                - QSR
+                - SARI
+            referenceNumber:
+              type: string
+              pattern: \S
+              maxLength: 255
+            customerRefNumber:
+              type: string
+              pattern: \S
+              maxLength: 20
+              minLength: 4
+            originatorRefNumber:
+              type: string
+              pattern: \S
+              maxLength: 20
+              minLength: 4
+            commodity:
+              type: string
+              enum:
+                - AEROSTRUCTURE
+                - CABIN
+                - EQUIPMENTS
+                - MATERIAL_AND_PART
+                - PROPULSION
+            contact:
+              type: string
+              pattern: \S
+              maxLength: 100
+            partName:
+              type: string
+              pattern: \S
+              maxLength: 50
+            partNumber:
+              type: string
+              pattern: \S
+              maxLength: 25
+            customerPartNumber:
+              type: string
+              pattern: \S
+              maxLength: 25
+            program:
+              type: string
+              pattern: \S
+              maxLength: 50
+            ataChapter:
+              type: string
+              pattern: \S
+              maxLength: 8
+            dispositionOfConcession:
+              type: string
+              pattern: \S
+              maxLength: 2000
+            customerQualityApprobatorName:
+              type: string
+              pattern: \S
+              maxLength: 20
+            customerQualityApprobatorFunctionOrDepartment:
+              type: string
+              pattern: \S
+              maxLength: 10
+            dateOfApproval:
+              type: string
+              format: 'date-time'
+
+            apparentProblem:
+              type: string
+              pattern: \S
+              maxLength: 2000
+
+            apparentConsequences:
+              type: string
+              pattern: \S
+              maxLength: 2000
+
+            availabilityOfReplacementParts:
+              type: string
+              pattern: \S
+              maxLength: 2000
+            availabilityOfPersonnelToPerformWork:
+              type: string
+              pattern: \S
+              maxLength: 2000
+
+            serialNumbers:
+              type: array
+              # The DB field is 1000 chars long.
+              maxItems: 50
+              items:
+                type: string
+                pattern: \S
+                maxLength: 20
+
+            comments:
+              type: string
+              pattern: \S
+              maxLength: 2000
+
+            customerTeamLead:
+              description: >
+                If type is »UserIdentifiedByEmail« the following fields are required: [email]
+              type: object
+              required:
+                - type
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - UserIdentifiedByEmail
+                email:
+                  type: string
+                  format: email
+
+            problemDescription:
+              type: string
+              pattern: \S
+              maxLength: 2000
+
+            potentialConsequences:
+              type: string
+              pattern: \S
+              maxLength: 2000
+
+            otherPartiesRequiringNotification:
+              type: string
+              pattern: \S
+              maxLength: 150
+
+            inServiceUnitsAffected:
+              type: string
+              pattern: \S
+              maxLength: 1000
+
+            howWasItDetected:
+              type: string
+              pattern: \S
+              maxLength: 150
+            whenWasItDetected:
+              type: string
+              pattern: \S
+              maxLength: 150
+            whereWasItDetected:
+              type: string
+              pattern: \S
+              maxLength: 150
+            byWhomWasItDetected:
+              type: string
+              pattern: \S
+              maxLength: 150
+
+    CreateDocumentResponseDto:
+      type: object
+      required:
+        - identifier
+      properties:
+        identifier:
+          type: string
+          pattern: \S
+
+    PartnerRelationDto:
+      description: >
+        If type is »PlantCodeAndSupplierNumber« the following fields are required: [plantCode, supplierNumber]
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - PlantCodeAndSupplierNumber
+        plantCode:
+          type: string
+          pattern: \S
+          maxLength: 100
+        supplierNumber:
+          type: string
+          pattern: \S
+          maxLength: 255
+
+    EchoDto:
+      type: object
+      required:
+        - httpStatusCode
+      properties:
+        httpStatusCode:
+          type: integer
+          description: The desired HTTP status code of the response
+
+    HealthCheckObjectDto:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/StatusValueDto"
+        checks:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/AppComponentHealthCheckDto"
+
+    PingResponseDto:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/StatusValueDto"
